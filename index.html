@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>我的可愛旅遊手帳</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: 'Mochiy+Pop+One', 'Noto+Sans+TC', sans-serif;
+            background-color: #F3F4F6;
+            color: #5D5451;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .coffee-bg { background-color: #7B6653; }
+        .blue-bg { background-color: #A8DADC; }
+        .gray-bg { background-color: #E5E7EB; }
+        .accent-pink { background-color: #FFB7B2; }
+        
+        /* 滾輪式調整模擬 */
+        .wheel-picker {
+            height: 100px;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+        }
+        .wheel-item {
+            height: 50px;
+            scroll-snap-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        /* 隱藏捲軸 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .app-card {
+            border-radius: 30px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+        }
+        input, select {
+            border-radius: 15px;
+            border: 2px solid #A8DADC;
+            padding: 8px 12px;
+            outline: none;
+        }
+        .tab-active {
+            background-color: #7B6653;
+            color: white;
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body class="max-w-md mx-auto bg-gray-100 min-h-screen">
+
+<div id="app" class="pb-24">
+    <header class="p-6 blue-bg rounded-b-[40px] text-center shadow-lg">
+        <div class="flex flex-col items-center">
+            <input v-model="destination" class="text-2xl font-bold bg-transparent border-none text-center focus:ring-0 placeholder-gray-500" placeholder="點擊輸入國家">
+            <p class="text-sm mt-2 opacity-80">✈️ 旅程規劃中...</p>
+        </div>
+    </header>
+
+    <section class="m-4 p-5 bg-white app-card">
+        <h3 class="font-bold mb-3 flex items-center">🕒 航班時間</h3>
+        <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+                <label class="block text-xs text-gray-400">去程</label>
+                <input type="datetime-local" v-model="flight.departure" class="w-full mt-1 text-xs">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400">回程</label>
+                <input type="datetime-local" v-model="flight.return" class="w-full mt-1 text-xs">
+            </div>
+        </div>
+    </section>
+
+    <nav class="flex space-x-2 px-4 overflow-x-auto no-scrollbar py-2">
+        <button v-for="n in 6" :key="n" 
+                @click="currentDay = n"
+                :class="['flex-shrink-0 px-5 py-2 rounded-full text-sm transition-all', currentDay === n ? 'tab-active' : 'bg-white']">
+            Day {{ n }}
+        </button>
+    </nav>
+
+    <section class="m-4">
+        <div v-for="(item, index) in dailyItinerary[currentDay]" :key="index" class="bg-white p-4 rounded-2xl mb-3 shadow-sm flex items-start gap-3">
+            <div class="flex flex-col items-center">
+                <div class="text-xs font-bold text-blue-400">{{ item.time }}</div>
+                <div class="w-0.5 h-10 bg-blue-100 my-1"></div>
+            </div>
+            <div class="flex-grow">
+                <input v-model="item.location" class="font-bold block w-full border-none p-0 focus:ring-0" placeholder="地點名稱">
+                <input v-model="item.note" class="text-xs text-gray-400 block w-full border-none p-0 mt-1" placeholder="備註：美食或必去景點">
+            </div>
+            <button @click="deleteItem(index)" class="text-red-300">✕</button>
+        </div>
+        
+        <button @click="addItem" class="w-full py-3 rounded-2xl border-2 border-dashed border-blue-300 text-blue-400 font-bold bg-blue-50">
+            + 新增行程項目
+        </button>
+    </section>
+
+    <section class="m-4 p-5 bg-white app-card">
+        <h3 class="font-bold mb-4">💰 小熊分帳</h3>
+        <div class="space-y-3">
+            <div v-for="(expense, idx) in expenses" :key="idx" class="flex gap-2">
+                <input v-model="expense.payer" placeholder="誰付錢" class="w-1/3 text-sm">
+                <input v-type="number" v-model.number="expense.amount" placeholder="金額" class="w-1/3 text-sm">
+                <button @click="expenses.splice(idx, 1)" class="text-gray-300">✕</button>
+            </div>
+            <button @click="expenses.push({payer: '', amount: 0})" class="text-xs text-blue-400 underline">+ 新增支出</button>
+            <div class="mt-4 p-3 gray-bg rounded-xl text-xs">
+                <p v-for="res in splitResult" class="mb-1">{{ res }}</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="m-4 p-5 bg-white app-card">
+        <h3 class="font-bold mb-3">📍 地圖導航</h3>
+        <div id="map" class="h-48 rounded-2xl z-0"></div>
+    </section>
+
+    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 w-72 h-16 bg-white rounded-full shadow-2xl flex justify-around items-center px-6 border-t border-gray-100">
+        <span class="text-2xl opacity-50">🏠</span>
+        <span class="text-3xl">📝</span>
+        <span class="text-2xl opacity-50" @click="openNavigation">🗺️</span>
+    </div>
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted } = Vue;
+
+createApp({
+    setup() {
+        const destination = ref('日本 東京');
+        const flight = ref({ departure: '', return: '' });
+        const currentDay = ref(1);
+        
+        // 初始化 6 天的行程數據
+        const dailyItinerary = ref({
+            1: [{ time: '10:00', location: '抵達機場', note: '領取網卡' }],
+            2: [], 3: [], 4: [], 5: [], 6: []
+        });
+
+        const expenses = ref([
+            { payer: '小明', amount: 3000 },
+            { payer: '小華', amount: 1000 }
+        ]);
+
+        const addItem = () => {
+            dailyItinerary.value[currentDay.value].push({ time: '12:00', location: '', note: '' });
+        };
+
+        const deleteItem = (index) => {
+            dailyItinerary.value[currentDay.value].splice(index, 1);
+        };
+
+        // 分帳邏輯：簡單平均分配
+        const splitResult = computed(() => {
+            const total = expenses.value.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+            const payers = expenses.value.filter(e => e.payer);
+            if (payers.length < 2) return ['請輸入至少兩位付款人資料'];
+            
+            const avg = total / payers.length;
+            let results = [];
+            payers.forEach(p => {
+                const diff = p.amount - avg;
+                if (diff > 0) results.push(`${p.payer} 應收回 ${Math.round(diff)} 元`);
+                if (diff < 0) results.push(`${p.payer} 應補出 ${Math.round(Math.abs(diff))} 元`);
+            });
+            return results;
+        });
+
+        // 導航功能
+        const openNavigation = () => {
+            const currentItems = dailyItinerary.value[currentDay.value];
+            if (currentItems.length > 0 && currentItems[0].location) {
+                window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(currentItems[0].location)}`);
+            } else {
+                alert('請先在行程中輸入地點！');
+            }
+        };
+
+        onMounted(() => {
+            // 初始化地圖 (Leaflet)
+            const map = L.map('map').setView([35.6895, 139.6917], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        });
+
+        return {
+            destination, flight, currentDay, dailyItinerary,
+            addItem, deleteItem, expenses, splitResult, openNavigation
+        }
+    }
+}).mount('#app');
+</script>
+
+</body>
+</html>

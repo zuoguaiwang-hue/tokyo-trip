@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大王與阿婷的甜蜜旅行</title>
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --coffee: #8D775F;
+            --soft-pink: #FCE4EC;
+            --blue-grey: #607D8B;
+            --sky-blue: #E3F2FD;
+            --deep-coffee: #5D4037;
+        }
+        body {
+            font-family: 'Noto Sans TC', 'ZCOOL KuaiLe', cursive;
+            background-color: #f0f0f0;
+        }
+        .app-container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 30px rgba(0,0,0,0.1);
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .tab-active {
+            background-color: var(--coffee);
+            color: white;
+            box-shadow: 0 4px 10px rgba(141, 119, 95, 0.3);
+        }
+        .slide-enter-active, .slide-leave-active { transition: all 0.4s ease; }
+        .slide-enter-from, .slide-leave-to { transform: translateY(-100%); opacity: 0; }
+    </style>
+</head>
+<body>
+
+<div id="app" class="app-container relative pb-24 overflow-x-hidden">
+    
+    <header class="relative bg-[#FCE4EC] pt-8 pb-4 px-6 shadow-md z-20">
+        <div class="bg-white rounded-3xl p-5 shadow-sm border-2 border-dashed border-[#8D775F] relative">
+            <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#FCE4EC] rounded-full"></div>
+            <div class="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#FCE4EC] rounded-full"></div>
+            
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Destination</span>
+                <button @click="isConfigOpen = !isConfigOpen" class="text-[#8D775F] text-xs font-bold border border-[#8D775F] px-2 py-1 rounded-full hover:bg-[#8D775F] hover:text-white transition-colors">
+                    {{ isConfigOpen ? '完成設定' : '修改行程' }} ⚙️
+                </button>
+            </div>
+            
+            <h1 class="text-3xl font-black text-[#5D4037] mb-1">{{ settings.country }}</h1>
+            <p class="text-xs text-[#607D8B] font-medium">{{ settings.totalDays }} Days Adventure</p>
+            
+            <div class="mt-4 pt-4 border-t border-dashed border-gray-200 flex justify-between items-end">
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase">Departure</p>
+                    <p class="text-sm font-bold text-[#8D775F]">{{ formatDate(settings.flightDeparture) }}</p>
+                </div>
+                <div class="text-center px-4"><span class="text-xl">✈️</span></div>
+                <div class="text-right">
+                    <p class="text-[10px] text-gray-400 uppercase">Return</p>
+                    <p class="text-sm font-bold text-[#8D775F]">{{ formatDate(settings.flightReturn) }}</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <transition name="slide">
+        <div v-if="isConfigOpen" class="absolute top-[240px] left-0 w-full bg-[#607D8B] p-6 rounded-b-[40px] shadow-2xl z-10 text-white">
+            <h3 class="font-bold mb-4 text-pink-200 text-center">🧳 規劃你的專屬旅程</h3>
+            <div class="space-y-4">
+                <div class="flex flex-col">
+                    <label class="text-xs opacity-70 mb-1">目的地</label>
+                    <input v-model="settings.country" class="bg-white/10 border-b-2 border-white/30 p-2 text-xl focus:outline-none focus:border-pink-300">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="flex flex-col">
+                        <label class="text-xs opacity-70 mb-1">旅行天數</label>
+                        <div class="flex items-center bg-white/10 rounded-xl p-1">
+                            <button @click="settings.totalDays > 1 && settings.totalDays--" class="w-10 h-10 text-2xl">-</button>
+                            <input type="number" v-model.number="settings.totalDays" @change="adjustDays" class="bg-transparent text-center w-full text-xl font-bold focus:outline-none">
+                            <button @click="settings.totalDays < 31 && settings.totalDays++" class="w-10 h-10 text-2xl">+</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs opacity-70 mb-1">去程航班</label>
+                        <input type="datetime-local" v-model="settings.flightDeparture" class="w-full bg-white/10 p-2 rounded-lg text-xs focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs opacity-70 mb-1">回程航班</label>
+                        <input type="datetime-local" v-model="settings.flightReturn" class="w-full bg-white/10 p-2 rounded-lg text-xs focus:outline-none">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </transition>
+
+    <div class="flex-1 flex flex-col pt-4">
+        <div v-if="activeTab === 'itinerary'" class="flex flex-col animate-fadeIn">
+            <nav class="flex gap-2 p-4 overflow-x-auto no-scrollbar">
+                <button v-for="n in settings.totalDays" :key="n" 
+                        @click="currentDay = n"
+                        :class="['px-6 py-2 rounded-2xl font-bold whitespace-nowrap transition-all duration-300', currentDay === n ? 'tab-active' : 'bg-[#E3F2FD] text-[#607D8B]']">
+                    Day {{ n }}
+                </button>
+            </nav>
+
+            <main class="px-6 space-y-4">
+                <div class="flex justify-between items-center">
+                    <div class="h-1 w-12 bg-[#8D775F] rounded-full"></div>
+                    <h2 class="text-[#8D775F] font-black text-xl tracking-widest uppercase">Day {{ currentDay }}</h2>
+                    <div class="h-1 w-12 bg-[#8D775F] rounded-full"></div>
+                </div>
+
+                <div v-for="(item, index) in dailySchedules[currentDay]" :key="index" 
+                     class="group bg-white rounded-[25px] p-5 shadow-sm border border-gray-100 relative">
+                    <button @click="removeItinerary(index)" class="absolute top-3 right-3 text-gray-300 hover:text-red-400 text-lg">✕</button>
+                    
+                    <div class="flex items-start gap-4">
+                        <div class="flex flex-col items-center">
+                            <input type="time" v-model="item.time" class="text-sm font-black text-[#8D775F] bg-[#FCE4EC] px-2 py-1 rounded-lg outline-none">
+                            <div class="w-0.5 h-16 border-l-2 border-dashed border-gray-200 my-2"></div>
+                        </div>
+                        <div class="flex-1">
+                            <input v-model="item.location" placeholder="行程標題/地點" class="text-lg font-bold w-full focus:outline-none text-[#5D4037] mb-2 border-b border-gray-50">
+                            
+                            <div class="bg-gray-50 p-3 rounded-2xl">
+                                <span class="text-[9px] font-bold text-[#607D8B] block mb-1 uppercase tracking-tighter">📝 備註欄 (Notes)</span>
+                                <textarea v-model="item.notes" rows="2" class="w-full text-xs bg-transparent focus:outline-none resize-none leading-relaxed" placeholder="寫下想去的小店或必吃的美食..."></textarea>
+                            </div>
+                            
+                            <button @click="openMap(item.location)" class="mt-3 text-[10px] font-bold text-blue-500 flex items-center gap-1">
+                                📍 開啟 Google Maps
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <button @click="addItinerary" class="w-full py-4 border-2 border-dashed border-gray-200 rounded-[25px] text-gray-400 font-bold hover:bg-gray-50 transition-colors">
+                    + 新增行程項目
+                </button>
+            </main>
+        </div>
+
+        <div v-if="activeTab === 'billing'" class="flex flex-col p-6 animate-fadeIn">
+            <div class="text-center mb-8">
+                <span class="text-4xl">💰</span>
+                <h2 class="text-2xl font-black text-[#5D4037] mt-2 font-bold">結帳大王與阿婷</h2>
+            </div>
+            
+            <div class="space-y-6">
+                <div class="relative">
+                    <label class="absolute -top-2 left-4 bg-white px-2 text-[10px] font-bold text-[#8D775F]">KING PAY</label>
+                    <div class="flex items-center bg-gray-50 rounded-2xl p-4 border-2 border-transparent focus-within:border-[#8D775F]">
+                        <span class="text-xl mr-2">👑</span>
+                        <input type="number" v-model.number="bill.king" class="bg-transparent w-full text-2xl font-bold focus:outline-none" placeholder="大王付了多少？">
+                    </div>
+                </div>
+
+                <div class="relative">
+                    <label class="absolute -top-2 left-4 bg-white px-2 text-[10px] font-bold text-pink-400">TING PAY</label>
+                    <div class="flex items-center bg-gray-50 rounded-2xl p-4 border-2 border-transparent focus-within:border-pink-300">
+                        <span class="text-xl mr-2">🎀</span>
+                        <input type="number" v-model.number="bill.ting" class="bg-transparent w-full text-2xl font-bold focus:outline-none" placeholder="阿婷付了多少？">
+                    </div>
+                </div>
+
+                <div class="bg-[#8D775F] p-8 rounded-[40px] text-white text-center shadow-2xl relative overflow-hidden">
+                    <div class="absolute -top-4 -left-4 w-12 h-12 bg-white/10 rounded-full"></div>
+                    <p class="text-xs opacity-80 mb-2 tracking-widest">SETTLEMENT</p>
+                    <div v-if="settlement.amount > 0">
+                        <p class="text-lg font-bold mb-1">{{ settlement.payer }} 應該給 {{ settlement.receiver }}</p>
+                        <p class="text-5xl font-black text-yellow-300">${{ settlement.amount }}</p>
+                    </div>
+                    <p v-else class="text-xl font-bold italic">Perfect Balance! 🤝</p>
+                </div>
+                <button @click="resetBill" class="w-full text-gray-300 text-[10px] font-bold uppercase tracking-widest">Reset Data</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] bg-white/80 backdrop-blur-lg rounded-full shadow-2xl flex justify-around p-2 border border-white/50 z-30">
+        <button @click="activeTab = 'itinerary'" :class="['flex-1 py-3 rounded-full flex flex-col items-center gap-1 transition-all', activeTab === 'itinerary' ? 'bg-[#8D775F] text-white shadow-lg' : 'text-gray-400']">
+            <span class="text-xl">🗺️</span>
+            <span class="text-[10px] font-bold">行程</span>
+        </button>
+        <button @click="activeTab = 'billing'" :class="['flex-1 py-3 rounded-full flex flex-col items-center gap-1 transition-all', activeTab === 'billing' ? 'bg-[#8D775F] text-white shadow-lg' : 'text-gray-400']">
+            <span class="text-xl">💳</span>
+            <span class="text-[10px] font-bold">分帳</span>
+        </button>
+    </footer>
+</div>
+
+<script>
+    const { createApp, ref, computed, watch, onMounted } = Vue;
+    createApp({
+        setup() {
+            const isConfigOpen = ref(false);
+            const activeTab = ref('itinerary');
+            const currentDay = ref(1);
+            const settings = ref({ country: '日本 東京', totalDays: 5, flightDeparture: '2026-04-01T08:00', flightReturn: '2026-04-05T21:00' });
+            const dailySchedules = ref({});
+            const bill = ref({ king: 0, ting: 0 });
+
+            const formatDate = (dateStr) => {
+                if(!dateStr) return '尚未設定';
+                const d = new Date(dateStr);
+                return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            };
+
+            const adjustDays = () => {
+                for (let i = 1; i <= settings.value.totalDays; i++) {
+                    if (!dailySchedules.value[i]) dailySchedules.value[i] = [];
+                }
+                if (currentDay.value > settings.value.totalDays) currentDay.value = settings.value.totalDays;
+            };
+
+            const addItinerary = () => {
+                if (!dailySchedules.value[currentDay.value]) dailySchedules.value[currentDay.value] = [];
+                dailySchedules.value[currentDay.value].push({ time: '09:00', location: '', notes: '' });
+            };
+
+            const removeItinerary = (idx) => dailySchedules.value[currentDay.value].splice(idx, 1);
+
+            const settlement = computed(() => {
+                const k = bill.value.king || 0, t = bill.value.ting || 0;
+                const share = (k + t) / 2;
+                return k > share ? { payer: '阿婷', receiver: '大王', amount: Math.round(k - share) } :
+                       t > share ? { payer: '大王', receiver: '阿婷', amount: Math.round(t - share) } : { amount: 0 };
+            });
+
+            const resetBill = () => confirm('確定要清空嗎？') && (bill.value = { king: 0, ting: 0 });
+            const openMap = (loc) => loc ? window.open(`https://www.google.com/maps/search/${encodeURIComponent(loc)}`, '_blank') : alert('請輸入地點');
+            
+            const saveData = () => localStorage.setItem('travel_v4_data', JSON.stringify({ settings: settings.value, dailySchedules: dailySchedules.value, bill: bill.value }));
+            const loadData = () => {
+                const saved = localStorage.getItem('travel_v4_data');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    settings.value = parsed.settings;
+                    dailySchedules.value = parsed.dailySchedules;
+                    bill.value = parsed.bill;
+                } else { adjustDays(); }
+            };
+
+            watch([settings, dailySchedules, bill], () => saveData(), { deep: true });
+            onMounted(() => loadData());
+
+            return { isConfigOpen, activeTab, currentDay, settings, dailySchedules, bill, formatDate, adjustDays, addItinerary, removeItinerary, settlement, resetBill, openMap };
+        }
+    }).mount('#app');
+</script>
+
+<style>
+    .animate-fadeIn { animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</body>
+</html>

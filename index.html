@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tokyo Travel Planner</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .day-tab-active { background: #4f46e5; color: white; transform: scale(1.05); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <div id="app" class="max-w-md mx-auto min-h-screen flex flex-col pb-24">
+        
+        <header class="bg-white sticky top-0 z-30 px-6 py-4 border-b border-slate-100">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h1 class="text-xl font-black text-slate-800 tracking-tight">TOKYO 2026</h1>
+                    <p class="text-[10px] text-indigo-500 font-bold tracking-widest uppercase">Oct 04 - Oct 09</p>
+                </div>
+                <div class="bg-slate-100 p-2 rounded-xl text-[10px] font-bold">
+                    住宿：品川大井町
+                </div>
+            </div>
+
+            <div class="flex space-x-2 overflow-x-auto hide-scrollbar py-2">
+                <button 
+                    v-for="n in 6" :key="n"
+                    @click="activeDay = n"
+                    :class="activeDay === n ? 'day-tab-active shadow-md' : 'bg-white text-slate-400 border border-slate-100'"
+                    class="flex-shrink-0 px-5 py-2 rounded-2xl text-sm font-bold transition-all duration-200"
+                >
+                    Day {{n}}
+                </button>
+            </div>
+        </header>
+
+        <main class="flex-1 p-4 space-y-6">
+            
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-indigo-50 p-4 rounded-[2rem] border border-indigo-100">
+                    <div class="flex items-center mb-2 text-indigo-600">
+                        <i data-lucide="map" class="w-4 h-4 mr-1"></i>
+                        <span class="text-xs font-black">必玩景點</span>
+                    </div>
+                    <ul class="space-y-1">
+                        <li v-for="(spot, idx) in daysData[activeDay].mustVisit" :key="idx" class="flex items-center">
+                            <input v-model="daysData[activeDay].mustVisit[idx]" class="bg-transparent text-xs w-full focus:outline-none border-b border-transparent focus:border-indigo-200 font-medium text-slate-700">
+                        </li>
+                    </ul>
+                    <button @click="addItem('mustVisit')" class="mt-2 text-[10px] text-indigo-400 font-bold">+ 新增景點</button>
+                </div>
+
+                <div class="bg-rose-50 p-4 rounded-[2rem] border border-rose-100">
+                    <div class="flex items-center mb-2 text-rose-600">
+                        <i data-lucide="utensils" class="w-4 h-4 mr-1"></i>
+                        <span class="text-xs font-black">必吃美食</span>
+                    </div>
+                    <ul class="space-y-1">
+                        <li v-for="(food, idx) in daysData[activeDay].mustEat" :key="idx" class="flex items-center">
+                            <input v-model="daysData[activeDay].mustEat[idx]" class="bg-transparent text-xs w-full focus:outline-none border-b border-transparent focus:border-rose-200 font-medium text-slate-700">
+                        </li>
+                    </ul>
+                    <button @click="addItem('mustEat')" class="mt-2 text-[10px] text-rose-400 font-bold">+ 新增美食</button>
+                </div>
+            </div>
+
+            <section class="space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg font-black flex items-center">
+                        <i data-lucide="clock" class="w-5 h-5 mr-2 text-indigo-500"></i>
+                        Day {{activeDay}} 行程表
+                    </h2>
+                    <button @click="addPlan" class="bg-slate-900 text-white p-2 rounded-full shadow-lg active:scale-90 transition">
+                        <i data-lucide="plus" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <div v-if="daysData[activeDay].plans.length === 0" class="text-center py-10 text-slate-300 border-2 border-dashed border-slate-100 rounded-3xl">
+                    目前沒有行程，點擊 + 開始規劃
+                </div>
+
+                <div v-for="(plan, index) in daysData[activeDay].plans" :key="plan.id" class="relative pl-8 border-l-2 border-slate-100 pb-6 last:pb-0">
+                    <div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-4 border-indigo-500"></div>
+                    <div class="bg-white p-4 rounded-3xl shadow-sm border border-slate-50 relative group">
+                        <div class="flex justify-between items-center mb-2">
+                            <input type="time" v-model="plan.time" class="text-sm font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg focus:outline-none">
+                            <button @click="removePlan(index)" class="text-slate-300 hover:text-red-400">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <input v-model="plan.location" placeholder="行程名稱..." class="block w-full font-bold text-slate-700 focus:outline-none border-b border-transparent focus:border-slate-100">
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <nav class="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-100 px-10 py-4 flex justify-around items-center z-40 max-w-md mx-auto rounded-t-[2.5rem] shadow-2xl">
+            <button class="flex flex-col items-center text-indigo-600">
+                <i data-lucide="calendar" class="w-6 h-6"></i>
+                <span class="text-[10px] font-bold mt-1">行程表</span>
+            </button>
+            <div class="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 -mt-10" @click="saveData">
+                <i data-lucide="save" class="w-6 h-6"></i>
+            </div>
+            <button class="flex flex-col items-center text-slate-300">
+                <i data-lucide="wallet" class="w-6 h-6"></i>
+                <span class="text-[10px] font-bold mt-1">分帳</span>
+            </button>
+        </nav>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted, watch, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                const activeDay = ref(1);
+                
+                // 初始化 6 天的資料結構
+                const initialData = {};
+                for (let i = 1; i <= 6; i++) {
+                    initialData[i] = {
+                        mustVisit: ['景點 A'],
+                        mustEat: ['餐廳 A'],
+                        plans: [
+                            { id: Date.now() + i, time: '10:00', location: '開始當日行程' }
+                        ]
+                    };
+                }
+
+                // 加入一些預設行程 (Day 3 迪士尼)
+                initialData[3].mustVisit = ['東京迪士尼樂園'];
+                initialData[2].mustVisit = ['秋葉原射擊館', '模型店巡禮'];
+                initialData[2].mustEat = ['Roast Beef Ohno'];
+
+                const daysData = ref(initialData);
+
+                const addPlan = () => {
+                    daysData.value[activeDay.value].plans.push({
+                        id: Date.now(),
+                        time: '12:00',
+                        location: ''
+                    });
+                    refreshIcons();
+                };
+
+                const removePlan = (index) => {
+                    daysData.value[activeDay.value].plans.splice(index, 1);
+                };
+
+                const addItem = (type) => {
+                    daysData.value[activeDay.value][type].push('');
+                };
+
+                const refreshIcons = () => {
+                    nextTick(() => lucide.createIcons());
+                };
+
+                const saveData = () => {
+                    alert('行程已暫存於瀏覽器！');
+                    // 這裡可以擴充 localStorage 儲存
+                };
+
+                onMounted(() => {
+                    refreshIcons();
+                });
+
+                watch(activeDay, () => {
+                    refreshIcons();
+                });
+
+                return {
+                    activeDay,
+                    daysData,
+                    addPlan,
+                    removePlan,
+                    addItem,
+                    saveData
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

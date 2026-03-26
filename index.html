@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大王與阿婷的甜蜜旅行</title>
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --coffee: #8D775F;
+            --soft-pink: #FCE4EC;
+            --blue-grey: #607D8B;
+            --sky-blue: #E3F2FD;
+        }
+        body {
+            font-family: 'Noto Sans TC', 'ZCOOL KuaiLe', cursive;
+            background-color: #f5f5f5;
+        }
+        .app-container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .tab-active {
+            background-color: var(--coffee);
+            color: white;
+            transform: scale(1.05);
+        }
+        .nav-item-active {
+            color: var(--coffee);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app" class="app-container relative pb-24">
+    
+    <div v-if="activeTab === 'itinerary'" class="flex flex-col h-full">
+        <header class="p-6 bg-[#FCE4EC] rounded-b-[40px] shadow-sm">
+            <div class="flex justify-between items-center mb-4">
+                <input v-model="settings.country" class="text-2xl font-bold bg-transparent border-b-2 border-[#8D775F] text-[#8D775F] focus:outline-none w-2/3">
+                <div class="flex flex-col items-end">
+                    <span class="text-xs text-[#8D775F]">總天數</span>
+                    <input type="number" v-model.number="settings.totalDays" @change="adjustDays" min="1" max="31" class="w-12 text-center bg-white/50 rounded-lg font-bold">
+                </div>
+            </div>
+            
+            <div class="space-y-2 text-sm text-[#607D8B]">
+                <div class="flex items-center gap-2 bg-white/50 p-2 rounded-xl">
+                    <span>去程:</span> <input type="datetime-local" v-model="settings.flightDeparture" class="bg-transparent focus:outline-none">
+                </div>
+                <div class="flex items-center gap-2 bg-white/50 p-2 rounded-xl">
+                    <span>回程:</span> <input type="datetime-local" v-model="settings.flightReturn" class="bg-transparent focus:outline-none">
+                </div>
+            </div>
+        </header>
+
+        <nav class="flex gap-2 p-4 overflow-x-auto no-scrollbar">
+            <button v-for="n in settings.totalDays" :key="n" 
+                    @click="currentDay = n"
+                    :class="['px-5 py-2 rounded-full font-bold whitespace-nowrap transition-all', currentDay === n ? 'tab-active' : 'bg-[#E3F2FD] text-[#607D8B]']">
+                Day {{ n }}
+            </button>
+        </nav>
+
+        <main class="flex-1 px-4 space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-[#8D775F] font-bold text-xl">Day {{ currentDay }} 行程表</h2>
+                <button @click="addItinerary" class="bg-[#8D775F] text-white w-8 h-8 rounded-full shadow-lg">+</button>
+            </div>
+
+            <div v-if="!dailySchedules[currentDay] || dailySchedules[currentDay].length === 0" class="text-center py-10 text-gray-400 text-sm">
+                點擊 + 開始規劃行程吧！
+            </div>
+
+            <div v-for="(item, index) in dailySchedules[currentDay]" :key="index" 
+                 class="p-4 bg-white border-l-4 border-[#8D775F] shadow-sm rounded-r-2xl relative mb-4">
+                <button @click="removeItinerary(index)" class="absolute -top-2 -right-2 bg-red-400 text-white rounded-full w-5 h-5 text-xs">×</button>
+                
+                <div class="flex gap-2 items-center mb-2">
+                    <input type="time" v-model="item.time" class="text-sm font-bold text-[#607D8B] border-none focus:outline-none">
+                    <input v-model="item.location" placeholder="目的地標題" class="font-bold text-lg w-full focus:outline-none border-b border-dashed border-gray-300">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    <div class="bg-pink-50 p-2 rounded-lg">
+                        <p class="text-[10px] text-pink-400 font-bold">必去景點</p>
+                        <textarea v-model="item.spots" rows="1" class="w-full bg-transparent resize-none focus:outline-none"></textarea>
+                    </div>
+                    <div class="bg-blue-50 p-2 rounded-lg">
+                        <p class="text-[10px] text-blue-400 font-bold">必吃美食</p>
+                        <textarea v-model="item.food" rows="1" class="w-full bg-transparent resize-none focus:outline-none"></textarea>
+                    </div>
+                </div>
+                <button @click="openMap(item.location)" class="mt-2 text-[10px] text-blue-500 underline">🗺️ 開啟導航</button>
+            </div>
+        </main>
+    </div>
+
+    <div v-if="activeTab === 'billing'" class="flex flex-col h-full p-6 animate-fadeIn">
+        <h2 class="text-2xl font-bold text-[#607D8B] mb-6 flex items-center gap-2">
+            <span>💰</span> 分帳大王與阿婷
+        </h2>
+        
+        <div class="space-y-6">
+            <div class="bg-[#E3F2FD] p-6 rounded-[30px] border-2 border-dashed border-[#607D8B]">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[#607D8B] font-bold mb-2">大王 總共支付了：</label>
+                        <input type="number" v-model.number="bill.king" class="w-full p-4 rounded-2xl text-2xl font-bold text-[#8D775F] focus:outline-none shadow-inner" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="block text-[#607D8B] font-bold mb-2">阿婷 總共支付了：</label>
+                        <input type="number" v-model.number="bill.ting" class="w-full p-4 rounded-2xl text-2xl font-bold text-[#8D775F] focus:outline-none shadow-inner" placeholder="0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-[#8D775F] p-8 rounded-[40px] text-white text-center shadow-xl">
+                <p class="text-sm opacity-80 mb-2">結算結果</p>
+                <div v-if="settlement.amount > 0">
+                    <h3 class="text-3xl font-bold mb-2">
+                        {{ settlement.payer }} <span class="text-pink-300">➡</span> {{ settlement.receiver }}
+                    </h3>
+                    <p class="text-4xl font-black text-yellow-300">${{ settlement.amount }}</p>
+                </div>
+                <div v-else>
+                    <p class="text-2xl font-bold">目前兩人平手！🤝</p>
+                </div>
+            </div>
+
+            <button @click="resetBill" class="w-full py-3 text-gray-400 text-xs">重設分帳金額</button>
+        </div>
+    </div>
+
+    <footer class="fixed bottom-0 max-w-[500px] w-full bg-white/90 backdrop-blur-md border-t flex justify-around p-4 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+        <button @click="activeTab = 'itinerary'" :class="['flex flex-col items-center gap-1 transition-all', activeTab === 'itinerary' ? 'text-[#8D775F]' : 'text-gray-300']">
+            <span class="text-2xl">📅</span>
+            <span class="text-xs">行程規劃</span>
+        </button>
+        <button @click="activeTab = 'billing'" :class="['flex flex-col items-center gap-1 transition-all', activeTab === 'billing' ? 'text-[#8D775F]' : 'text-gray-300']">
+            <span class="text-2xl">💰</span>
+            <span class="text-xs">結帳清單</span>
+        </button>
+    </footer>
+</div>
+
+<script>
+    const { createApp, ref, computed, watch, onMounted } = Vue;
+
+    createApp({
+        setup() {
+            const activeTab = ref('itinerary');
+            const currentDay = ref(1);
+
+            // 設定與航班
+            const settings = ref({
+                country: '日本 東京',
+                totalDays: 6,
+                flightDeparture: '',
+                flightReturn: ''
+            });
+
+            // 行程數據
+            const dailySchedules = ref({});
+
+            // 分帳數據
+            const bill = ref({ king: 0, ting: 0 });
+
+            // 初始化與調整天數
+            const adjustDays = () => {
+                const total = settings.value.totalDays;
+                for (let i = 1; i <= total; i++) {
+                    if (!dailySchedules.value[i]) {
+                        dailySchedules.value[i] = [];
+                    }
+                }
+                if (currentDay.value > total) currentDay.value = total;
+            };
+
+            const addItinerary = () => {
+                if (!dailySchedules.value[currentDay.value]) dailySchedules.value[currentDay.value] = [];
+                dailySchedules.value[currentDay.value].push({ time: '12:00', location: '', spots: '', food: '' });
+            };
+
+            const removeItinerary = (idx) => {
+                dailySchedules.value[currentDay.value].splice(idx, 1);
+            };
+
+            const settlement = computed(() => {
+                const king = bill.value.king || 0;
+                const ting = bill.value.ting || 0;
+                const total = king + ting;
+                const share = total / 2;
+                if (king > share) {
+                    return { payer: '阿婷', receiver: '大王', amount: Math.round(king - share) };
+                } else if (ting > share) {
+                    return { payer: '大王', receiver: '阿婷', amount: Math.round(ting - share) };
+                }
+                return { amount: 0 };
+            });
+
+            const resetBill = () => { if(confirm('確定要清空分帳金額嗎？')) bill.value = { king: 0, ting: 0 }; };
+            const openMap = (loc) => loc ? window.open(`https://www.google.com/maps/search/${encodeURIComponent(loc)}`, '_blank') : alert('請輸入地點');
+
+            // --- LocalStorage 儲存功能 ---
+            const saveData = () => {
+                const data = {
+                    settings: settings.value,
+                    dailySchedules: dailySchedules.value,
+                    bill: bill.value
+                };
+                localStorage.setItem('travel_app_data', JSON.stringify(data));
+            };
+
+            const loadData = () => {
+                const saved = localStorage.getItem('travel_app_data');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    settings.value = parsed.settings;
+                    dailySchedules.value = parsed.dailySchedules;
+                    bill.value = parsed.bill;
+                } else {
+                    adjustDays(); // 第一次開啟初始化
+                }
+            };
+
+            // 監聽數據變化自動儲存
+            watch([settings, dailySchedules, bill], () => saveData(), { deep: true });
+
+            onMounted(() => loadData());
+
+            return {
+                activeTab, currentDay, settings, dailySchedules,
+                bill, adjustDays, addItinerary, removeItinerary,
+                settlement, resetBill, openMap
+            }
+        }
+    }).mount('#app');
+</script>
+
+<style>
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+</style>
+
+</body>
+</html>

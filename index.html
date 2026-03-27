@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>小森旅程 Pro - 互動優化版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'forest-green': '#6DA67A',
+                        'wood-brown': '#A67B5B',
+                        'soft-beige': '#F7F4EB',
+                        'paper-white': '#FFFFFF',
+                        'clay-gray': '#E0E5D5',
+                    },
+                    borderRadius: { 'ac-lg': '2.5rem', 'ac-md': '1.5rem', 'ac-sm': '1rem' },
+                    boxShadow: { 'ac-soft': '4px 4px 0px #E0E5D5' }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #F7F4EB; background-image: radial-gradient(#E0E5D5 0.8px, transparent 0.8px); background-size: 24px 24px; overscroll-behavior: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .active-press { transition: transform 0.1s; }
+        .active-press:active { transform: scale(0.95); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        const { motion, AnimatePresence } = window.Motion;
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('schedule');
+            const [todos, setTodos] = useState(() => JSON.parse(localStorage.getItem('travel_todos')) || [
+                { id: 1, text: "預約機場接送", done: true },
+                { id: 2, text: "換匯 5 萬日圓", done: false }
+            ]);
+            const [expenses, setExpenses] = useState(() => JSON.parse(localStorage.getItem('travel_expenses')) || [
+                { id: 1, title: "晚餐 - 壽喜燒", amount: 4500, category: "美食" }
+            ]);
+
+            // 持久化儲存
+            useEffect(() => { localStorage.setItem('travel_todos', JSON.stringify(todos)); }, [todos]);
+            useEffect(() => { localStorage.setItem('travel_expenses', JSON.stringify(expenses)); }, [expenses]);
+
+            const totalYen = useMemo(() => expenses.reduce((sum, item) => sum + item.amount, 0), [expenses]);
+
+            return (
+                <div className="max-w-md mx-auto min-h-screen pb-32">
+                    <header className="p-6">
+                        <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
+                            <h1 className="text-2xl font-black text-wood-brown">東京秋日祭 ✨</h1>
+                            <p className="text-stone-400 font-bold italic">Enjoy your trip with partner!</p>
+                        </motion.div>
+                    </header>
+
+                    <main className="px-4">
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={activeTab}
+                                initial={{ opacity: 0, x: 10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -10 }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                {activeTab === 'schedule' && <ScheduleView />}
+                                {activeTab === 'bookings' && <BookingView />}
+                                {activeTab === 'expense' && (
+                                    <ExpenseView 
+                                        expenses={expenses} 
+                                        total={totalYen} 
+                                        onAdd={(item) => setExpenses([...expenses, { ...item, id: Date.now() }])} 
+                                    />
+                                )}
+                                {activeTab === 'planning' && (
+                                    <PlanningView 
+                                        todos={todos} 
+                                        onToggle={(id) => setTodos(todos.map(t => t.id === id ? {...t, done: !t.done} : t))} 
+                                    />
+                                )}
+                            </motion.div>
+                        </AnimatePresence>
+                    </main>
+
+                    {/* Navbar */}
+                    <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-[400px] bg-white border-2 border-clay-gray rounded-ac-lg shadow-ac-soft flex justify-around p-3 z-50">
+                        <NavBtn icon="fa-calendar-days" label="行程" active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')} />
+                        <NavBtn icon="fa-ticket" label="預訂" active={activeTab === 'bookings'} onClick={() => setActiveTab('bookings')} />
+                        <NavBtn icon="fa-wallet" label="記帳" active={activeTab === 'expense'} onClick={() => setActiveTab('expense')} />
+                        <NavBtn icon="fa-clipboard-list" label="準備" active={activeTab === 'planning'} onClick={() => setActiveTab('planning')} />
+                    </nav>
+                </div>
+            );
+        };
+
+        const NavBtn = ({ icon, label, active, onClick }) => (
+            <button onClick={onClick} className={`flex flex-col items-center gap-1 active-press ${active ? 'text-forest-green' : 'text-stone-300'}`}>
+                <i className={`fa-solid ${icon} text-xl transition-transform ${active ? 'scale-110' : ''}`}></i>
+                <span className="text-[10px] font-black">{label}</span>
+                {active && <motion.div layoutId="nav-dot" className="w-1.5 h-1.5 bg-forest-green rounded-full" />}
+            </button>
+        );
+
+        // --- 子頁面組件 ---
+
+        const ScheduleView = () => (
+            <div className="space-y-6">
+                <div className="bg-forest-green text-white p-5 rounded-ac-md shadow-ac-soft flex justify-between items-center">
+                    <div>
+                        <p className="text-xs font-bold opacity-80">NEXT DESTINATION</p>
+                        <h2 className="text-xl font-black">12:30 淺草今半</h2>
+                    </div>
+                    <div className="text-3xl animate-bounce">🍱</div>
+                </div>
+                <div className="border-l-4 border-clay-gray ml-4 pl-6 space-y-8">
+                    <div className="relative">
+                        <div className="absolute -left-[34px] top-0 w-4 h-4 rounded-full bg-forest-green border-4 border-soft-beige shadow-sm"></div>
+                        <div className="bg-white p-4 rounded-ac-md border-2 border-clay-gray shadow-ac-soft active-press">
+                            <p className="text-xs font-bold text-wood-brown">09:00 • 交通</p>
+                            <h3 className="font-black">搭乘京急電鐵前往市區</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const BookingView = () => (
+            <div className="space-y-4">
+                <div className="bg-white border-2 border-clay-gray rounded-ac-md shadow-ac-soft overflow-hidden">
+                    <div className="bg-stone-700 text-white p-3 px-4 flex justify-between items-center text-xs font-bold">
+                        <span>HOTEL VOUCHER</span>
+                        <i className="fa-solid fa-bed"></i>
+                    </div>
+                    <div className="p-5 flex gap-4">
+                        <img className="w-20 h-20 rounded-ac-sm object-cover" src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200" />
+                        <div>
+                            <h3 className="font-black">VIA INN 東京大井町</h3>
+                            <p className="text-[10px] text-stone-400 font-bold leading-tight">6晚 • 2人 • 禁菸雙人房</p>
+                            <button className="mt-2 text-[10px] bg-forest-green/10 text-forest-green px-2 py-1 rounded-full font-bold">查看地圖</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const ExpenseView = ({ expenses, total, onAdd }) => {
+            const [isAdding, setIsAdding] = useState(false);
+            const [newTitle, setNewTitle] = useState('');
+            const [newAmount, setNewAmount] = useState('');
+
+            return (
+                <div className="space-y-6">
+                    <div className="bg-wood-brown p-6 rounded-ac-lg shadow-ac-soft text-white flex justify-between items-end">
+                        <div>
+                            <p className="text-xs font-bold opacity-70 uppercase tracking-tighter">Current Spending</p>
+                            <h2 className="text-4xl font-black">¥ {total.toLocaleString()}</h2>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[10px] font-bold opacity-70">≈ NT$ {Math.round(total * 0.21).toLocaleString()}</p>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                        <h3 className="font-black text-lg text-stone-600">消費明細</h3>
+                        <button onClick={() => setIsAdding(!isAdding)} className="w-10 h-10 bg-forest-green text-white rounded-full shadow-ac-soft active-press flex items-center justify-center">
+                            <i className={`fa-solid ${isAdding ? 'fa-xmark' : 'fa-plus'}`}></i>
+                        </button>
+                    </div>
+
+                    {isAdding && (
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-4 rounded-ac-md border-2 border-clay-gray shadow-ac-soft space-y-3">
+                            <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="項目名稱 (如：藥妝購物)" className="w-full bg-soft-beige p-3 rounded-ac-sm border-none outline-none font-bold text-sm" />
+                            <input value={newAmount} onChange={e => setNewAmount(e.target.value)} type="number" inputMode="numeric" placeholder="金額 (JPY)" className="w-full bg-soft-beige p-3 rounded-ac-sm border-none outline-none font-bold text-sm" />
+                            <button onClick={() => {
+                                if(newTitle && newAmount) {
+                                    onAdd({ title: newTitle, amount: parseInt(newAmount), category: '一般' });
+                                    setNewTitle(''); setNewAmount(''); setIsAdding(false);
+                                }
+                            }} className="w-full bg-wood-brown text-white py-3 rounded-ac-sm font-black active-press">確認新增</button>
+                        </motion.div>
+                    )}
+
+                    <div className="space-y-3">
+                        {expenses.map(exp => (
+                            <div key={exp.id} className="bg-white p-4 rounded-ac-md border-2 border-clay-gray shadow-ac-soft flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-soft-beige flex items-center justify-center text-forest-green"><i className="fa-solid fa-cart-shopping"></i></div>
+                                    <span className="font-black text-stone-700">{exp.title}</span>
+                                </div>
+                                <span className="font-black text-lg">¥ {exp.amount.toLocaleString()}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const PlanningView = ({ todos, onToggle }) => (
+            <div className="space-y-4">
+                <h3 className="font-black text-lg text-stone-600 px-2">待辦清單</h3>
+                <div className="space-y-3">
+                    {todos.map(todo => (
+                        <div key={todo.id} onClick={() => onToggle(todo.id)} className={`flex items-center gap-4 p-4 rounded-ac-md border-2 transition-all cursor-pointer active-press ${todo.done ? 'bg-stone-50 border-stone-200' : 'bg-white border-clay-gray shadow-ac-soft'}`}>
+                            <div className={`w-6 h-6 rounded-ac-sm border-2 flex items-center justify-center ${todo.done ? 'bg-forest-green border-forest-green text-white' : 'border-clay-gray'}`}>
+                                {todo.done && <i className="fa-solid fa-check text-xs"></i>}
+                            </div>
+                            <span className={`font-bold flex-1 ${todo.done ? 'text-stone-300 line-through' : 'text-stone-700'}`}>{todo.text}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

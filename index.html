@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>大王與阿婷的島嶼冒險</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --ac-beige: #F7F4EB;
+            --ac-green: #78B159;
+            --ac-leaf: #A7D948;
+            --ac-brown: #8D775F;
+            --ac-shadow: #E0E5D5;
+        }
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--ac-beige);
+            color: var(--ac-brown);
+            /* 背景點狀紋理 */
+            background-image: radial-gradient(var(--ac-shadow) 1.5px, transparent 1.5px);
+            background-size: 24px 24px;
+        }
+        .ac-card {
+            background: white;
+            border-radius: 32px;
+            box-shadow: 6px 6px 0px var(--ac-shadow);
+            border: 2px solid #fff;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .ac-card:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px var(--ac-shadow);
+        }
+        .ac-btn-primary {
+            background-color: var(--ac-leaf);
+            color: #5D7A1D;
+            border-radius: 20px;
+            box-shadow: 0 4px 0px #8DBE31;
+            transition: all 0.1s;
+        }
+        .ac-btn-primary:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0px #8DBE31;
+        }
+        /* 隱藏捲軸 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        /* 頁面切換動畫 */
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+    </style>
+</head>
+<body class="pb-28">
+
+<div id="app" class="max-w-md mx-auto px-5 pt-8">
+    
+    <div v-if="activeTab === 'schedule'" class="space-y-6">
+        <header class="ac-card p-6 flex justify-between items-center border-2 border-[var(--ac-leaf)]">
+            <div>
+                <h1 class="text-2xl font-black text-[var(--ac-green)]">東京大冒險</h1>
+                <p class="text-xs font-bold opacity-60">距離出發還有 12 天</p>
+            </div>
+            <div class="text-right">
+                <span class="text-3xl">☀️</span>
+                <p class="text-[10px] font-bold uppercase">Tokyo / 22°C</p>
+            </div>
+        </header>
+
+        <div class="flex gap-3 overflow-x-auto no-scrollbar py-2">
+            <button v-for="n in 6" :key="n" @click="currentDay = n"
+                :class="['min-w-[75px] h-24 rounded-[30px] flex flex-col items-center justify-center border-2 transition-all', 
+                currentDay === n ? 'bg-[var(--ac-green)] text-white border-[var(--ac-green)]' : 'bg-white text-[var(--ac-brown)] border-transparent shadow-ac']"
+                style="box-shadow: 4px 4px 0px var(--ac-shadow);">
+                <span class="text-[10px] font-black opacity-80 uppercase">Day</span>
+                <span class="text-3xl font-black">{{ n }}</span>
+            </button>
+        </div>
+
+        <div class="space-y-4 relative">
+            <div v-for="item in schedules[currentDay]" :key="item.time" class="flex gap-4 items-start">
+                <span class="text-xs font-black pt-2 min-w-[45px] opacity-40">{{ item.time }}</span>
+                <div class="ac-card flex-1 p-4 relative">
+                    <div :class="['absolute left-0 top-4 w-1 h-8 rounded-r-full', item.color]"></div>
+                    <h3 class="font-bold text-lg">{{ item.title }}</h3>
+                    <p class="text-xs opacity-60">{{ item.desc }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="activeTab === 'bookings'" class="space-y-6">
+        <h2 class="text-xl font-black mb-4">🎫 憑證與預訂</h2>
+        <div class="bg-white rounded-3xl overflow-hidden shadow-ac border-2 border-dashed border-[var(--ac-brown)]">
+            <div class="bg-[var(--ac-green)] p-4 text-white flex justify-between">
+                <span class="font-black italic">BOARDING PASS</span>
+                <span class="text-xs">JL-802</span>
+            </div>
+            <div class="p-6 flex justify-between items-center bg-white">
+                <div><p class="text-[10px] opacity-40">FROM</p><p class="text-2xl font-black">TPE</p></div>
+                <div class="text-[var(--ac-leaf)]">✈️</div>
+                <div class="text-right"><p class="text-[10px] opacity-40">TO</p><p class="text-2xl font-black">NRT</p></div>
+            </div>
+            <div class="px-6 pb-6 text-sm flex justify-between border-t border-dashed pt-4">
+                <span>大王 & 阿婷</span>
+                <span class="font-bold">08:15 AM</span>
+            </div>
+        </div>
+        <div class="ac-card p-4 flex gap-4">
+            <div class="w-20 h-20 bg-gray-200 rounded-2xl overflow-hidden">
+                <img src="https://via.placeholder.com/150" class="w-full h-full object-cover">
+            </div>
+            <div class="flex-1">
+                <p class="text-[10px] font-bold text-[var(--ac-green)]">HOTEL</p>
+                <h3 class="font-bold">星野集團 OMO5</h3>
+                <p class="text-[10px] opacity-50">東京都豊島区北大塚</p>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="activeTab === 'expense'" class="space-y-6">
+        <div class="ac-card bg-[var(--ac-brown)] text-white p-6 relative overflow-hidden">
+            <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full"></div>
+            <p class="text-xs opacity-70 mb-1 uppercase font-bold">Total Spent</p>
+            <div class="flex items-baseline gap-2">
+                <span class="text-4xl font-black">¥ 12,850</span>
+                <span class="text-sm opacity-60">≈ NT$ 2,750</span>
+            </div>
+        </div>
+        
+        <div class="space-y-3">
+            <div v-for="ex in expenses" class="ac-card p-4 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-[var(--ac-beige)] flex items-center justify-center text-xl">{{ ex.icon }}</div>
+                    <div>
+                        <p class="font-bold text-sm">{{ ex.name }}</p>
+                        <p class="text-[10px] opacity-40">{{ ex.payer }} 支付</p>
+                    </div>
+                </div>
+                <p class="font-black text-red-500">¥ {{ ex.amount }}</p>
+            </div>
+        </div>
+        <button class="w-full ac-btn-primary py-4 font-black">新增記帳項目</button>
+    </div>
+
+    <div v-if="activeTab === 'journal'" class="space-y-6">
+        <h2 class="text-xl font-black">📖 冒險日誌</h2>
+        <div class="grid grid-cols-2 gap-4">
+            <div v-for="n in 3" class="ac-card p-2">
+                <div class="aspect-square bg-gray-100 rounded-2xl mb-2 overflow-hidden">
+                    <img src="https://via.placeholder.com/300" class="w-full h-full object-cover">
+                </div>
+                <p class="text-[10px] font-bold px-1">Day {{ n }} · 海邊散步</p>
+            </div>
+            <div class="ac-card p-2 flex items-center justify-center border-dashed border-4 border-gray-100 shadow-none">
+                <span class="text-4xl text-gray-200">+</span>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="activeTab === 'planning'" class="space-y-6">
+        <div class="flex gap-4 border-b-2 border-[var(--ac-shadow)] pb-2">
+            <button @click="planSubTab = 'todo'" :class="['font-black', planSubTab === 'todo' ? 'text-[var(--ac-green)]' : 'opacity-30']">待辦</button>
+            <button @click="planSubTab = 'pack'" :class="['font-black', planSubTab === 'pack' ? 'text-[var(--ac-green)]' : 'opacity-30']">行李</button>
+        </div>
+        <div class="space-y-3">
+            <div v-for="todo in todos" class="ac-card p-4 flex items-center gap-3">
+                <input type="checkbox" v-model="todo.done" class="w-6 h-6 rounded-lg accent-[var(--ac-green)]">
+                <span :class="['font-bold text-sm', todo.done ? 'line-through opacity-30' : '']">{{ todo.text }}</span>
+                <span class="ml-auto text-[10px] bg-[var(--ac-beige)] px-2 py-1 rounded-full">{{ todo.owner }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="activeTab === 'members'" class="space-y-8 text-center pt-10">
+        <div class="flex justify-center gap-10">
+            <div class="space-y-2">
+                <div class="w-24 h-24 rounded-full border-4 border-white shadow-ac overflow-hidden bg-orange-100">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=King" alt="大王">
+                </div>
+                <p class="font-black text-xl text-orange-600">大王</p>
+            </div>
+            <div class="space-y-2">
+                <div class="w-24 h-24 rounded-full border-4 border-white shadow-ac overflow-hidden bg-pink-100">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Ting" alt="阿婷">
+                </div>
+                <p class="font-black text-xl text-pink-600">阿婷</p>
+            </div>
+        </div>
+        <div class="ac-card p-6 inline-block">
+            <p class="text-sm font-bold italic opacity-60">「讓每一場旅行都變成永恆的冒險！」</p>
+        </div>
+    </div>
+
+    <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-[450px] bg-white/90 backdrop-blur-md rounded-[40px] shadow-ac border-2 border-[var(--ac-shadow)] flex justify-around p-3 z-50">
+        <nav-item icon="📅" label="行程" :active="activeTab === 'schedule'" @click="activeTab = 'schedule'"></nav-item>
+        <nav-item icon="🎫" label="預訂" :active="activeTab === 'bookings'" @click="activeTab = 'bookings'"></nav-item>
+        <nav-item icon="💰" label="記帳" :active="activeTab === 'expense'" @click="activeTab = 'expense'"></nav-item>
+        <nav-item icon="📖" label="日誌" :active="activeTab === 'journal'" @click="activeTab = 'journal'"></nav-item>
+        <nav-item icon="✅" label="準備" :active="activeTab === 'planning'" @click="activeTab = 'planning'"></nav-item>
+        <nav-item icon="👫" label="成員" :active="activeTab === 'members'" @click="activeTab = 'members'"></nav-item>
+    </nav>
+
+</div>
+
+<script>
+    const { createApp, ref } = Vue;
+
+    // 導航小元件
+    const NavItem = {
+        props: ['icon', 'label', 'active'],
+        template: `
+            <button @click="$emit('click')" :class="['flex flex-col items-center gap-1 transition-all active:scale-75', active ? 'text-[var(--ac-green)] scale-110' : 'text-gray-300']">
+                <span class="text-xl">{{ icon }}</span>
+                <span class="text-[9px] font-black uppercase">{{ label }}</span>
+            </button>
+        `
+    };
+
+    createApp({
+        components: { NavItem },
+        setup() {
+            const activeTab = ref('schedule');
+            const currentDay = ref(1);
+            const planSubTab = ref('todo');
+
+            const schedules = ref({
+                1: [
+                    { time: '09:00', title: '成田機場接駁', desc: '搭乘 Skyliner 到上野站', color: 'bg-blue-400' },
+                    { time: '13:00', title: '淺草雷門', desc: '逛仲見世通，吃人形燒', color: 'bg-orange-400' }
+                ],
+                2: [
+                    { time: '10:00', title: '迪士尼樂園', desc: '全天行程，要記得提早去排隊！', color: 'bg-pink-400' }
+                ],
+                3: [], 4: [], 5: [], 6: []
+            });
+
+            const expenses = ref([
+                { icon: '🍜', name: '拉麵晚餐', amount: 2400, payer: '大王' },
+                { icon: '🚋', name: 'Suica 儲值', amount: 5000, payer: '阿婷' },
+                { icon: '🎁', name: '伴手禮', amount: 3200, payer: '大王' }
+            ]);
+
+            const todos = ref([
+                { text: '換日圓現金', owner: '大王', done: true },
+                { text: '購買旅遊保險', owner: '阿婷', done: false },
+                { text: '確認網卡', owner: '全體', done: false }
+            ]);
+
+            return { activeTab, currentDay, schedules, expenses, planSubTab, todos };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

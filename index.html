@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kiki & Lala 夢幻旅程</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Itim&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --lala-pink: #FFC8DD;
+            --kiki-blue: #BDE0FE;
+            --star-yellow: #FFEFAD;
+        }
+        body {
+            font-family: 'Quicksand', 'Itim', sans-serif;
+            background: linear-gradient(180deg, #fdf2f8 0%, #e0f2fe 100%);
+            overscroll-behavior: none;
+        }
+        .app-container {
+            max-width: 450px;
+            height: 100vh;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(20px);
+            position: relative;
+            display: flex;
+            flex-col: column;
+        }
+        .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 28px;
+            border: 2px solid #ffffff;
+            box-shadow: 0 8px 32px rgba(255, 182, 193, 0.2);
+        }
+        .active-tab-icon {
+            filter: drop-shadow(0 0 5px var(--lala-pink));
+            transform: translateY(-4px);
+            transition: all 0.3s ease;
+        }
+        input, select { border-radius: 12px; }
+    </style>
+</head>
+<body class="flex justify-center items-center">
+
+<div id="app" class="app-container w-full shadow-2xl flex flex-col overflow-hidden">
+    
+    <header class="pt-10 pb-6 px-6 relative text-center">
+        <div class="absolute top-4 left-4 animate-pulse">✨</div>
+        <div class="absolute top-6 right-8 text-yellow-300 scale-150">★</div>
+        <h1 class="text-2xl font-bold text-gray-700 tracking-wide">
+            {{ settings.destination || '我的夢幻旅行' }}
+        </h1>
+        <p class="text-xs text-pink-400 font-bold tracking-widest mt-1">LITTLE TWIN STARS STYLE</p>
+    </header>
+
+    <main class="flex-1 overflow-y-auto px-5 pb-32">
+        
+        <div v-if="activeTab === 'itinerary'" class="space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg font-bold text-gray-600 flex items-center gap-2">
+                    <i data-lucide="map"></i> 每日行程
+                </h2>
+                <button @click="addActivity" class="bg-[#BDE0FE] text-blue-600 px-4 py-2 rounded-full text-xs font-bold shadow-sm active:scale-95 transition">
+                    + 新增地點
+                </button>
+            </div>
+
+            <div v-for="(act, index) in itinerary" :key="index" class="glass-card p-4 relative group">
+                <div class="flex gap-4 items-start">
+                    <div class="flex flex-col items-center">
+                        <input type="time" v-model="act.time" class="text-sm font-bold text-pink-400 bg-transparent outline-none">
+                        <div class="w-0.5 h-12 bg-pink-100 my-1"></div>
+                    </div>
+                    <div class="flex-1">
+                        <input v-model="act.location" placeholder="目的地或景點名稱" class="w-full text-lg font-bold text-gray-700 bg-transparent outline-none border-b border-dashed border-gray-200 mb-2 focus:border-pink-300">
+                        <div class="flex gap-2">
+                            <button @click="goMap(act.location)" class="flex items-center gap-1 text-[10px] bg-white text-blue-400 px-3 py-1 rounded-full border border-blue-50">
+                                <i data-lucide="navigation" class="w-3 h-3"></i> 導航
+                            </button>
+                            <button @click="removeActivity(index)" class="text-[10px] text-gray-300 ml-auto">刪除</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="activeTab === 'split'" class="space-y-6">
+            <h2 class="text-lg font-bold text-gray-600 flex items-center gap-2">
+                <i data-lucide="banknote"></i> 支出分攤
+            </h2>
+            <div class="glass-card p-6 text-center space-y-6">
+                <div>
+                    <span class="text-xs text-gray-400 block mb-1">總花費 (Total)</span>
+                    <input type="number" v-model.number="bill.amount" class="w-full text-3xl font-bold text-center text-pink-500 bg-transparent outline-none" placeholder="0">
+                </div>
+                <div class="flex items-center justify-between bg-pink-50 p-3 rounded-2xl">
+                    <span class="text-sm text-pink-400 font-bold">分攤人數</span>
+                    <div class="flex items-center gap-4">
+                        <button @click="bill.people > 1 ? bill.people-- : null" class="w-8 h-8 rounded-full bg-white shadow-sm">-</button>
+                        <span class="font-bold text-gray-600">{{ bill.people }}</span>
+                        <button @click="bill.people++" class="w-8 h-8 rounded-full bg-white shadow-sm">+</button>
+                    </div>
+                </div>
+                <div class="bg-[#FFEFAD] p-4 rounded-3xl">
+                    <span class="text-xs text-yellow-700 block">每人應付金額</span>
+                    <span class="text-3xl font-bold text-yellow-600">${{ (bill.amount / bill.people).toFixed(0) }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="activeTab === 'settings'" class="space-y-4">
+            <h2 class="text-lg font-bold text-gray-600">旅程設定</h2>
+            <div class="glass-card p-5 space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-blue-400 block mb-1">目的地</label>
+                    <input v-model="settings.destination" class="w-full p-2 bg-blue-50 outline-none text-gray-700">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-pink-400 block mb-1">去程航班</label>
+                        <input v-model="settings.flightOut" class="w-full p-2 bg-pink-50 outline-none text-sm text-gray-600">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-pink-400 block mb-1">回程航班</label>
+                        <input v-model="settings.flightBack" class="w-full p-2 bg-pink-50 outline-none text-sm text-gray-600">
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <div class="flex-1">
+                        <label class="text-xs font-bold text-gray-400 block mb-1">出發日</label>
+                        <input type="date" v-model="settings.dateStart" class="w-full p-2 bg-gray-50 outline-none text-xs">
+                    </div>
+                    <div class="flex-1">
+                        <label class="text-xs font-bold text-gray-400 block mb-1">天數</label>
+                        <input type="number" v-model="settings.days" class="w-full p-2 bg-gray-50 outline-none text-xs">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <nav class="absolute bottom-0 w-full bg-white/90 backdrop-blur-md border-t border-pink-100 px-8 py-4 flex justify-between items-center safe-area-bottom">
+        <button @click="activeTab = 'itinerary'" :class="activeTab === 'itinerary' ? 'text-pink-400' : 'text-gray-300'">
+            <div class="flex flex-col items-center gap-1">
+                <i data-lucide="calendar" :class="{'active-tab-icon': activeTab === 'itinerary'}"></i>
+                <span class="text-[10px] font-bold">行程表</span>
+            </div>
+        </button>
+        <button @click="activeTab = 'split'" :class="activeTab === 'split' ? 'text-blue-400' : 'text-gray-300'">
+            <div class="flex flex-col items-center gap-1">
+                <i data-lucide="pie-chart" :class="{'active-tab-icon': activeTab === 'split'}"></i>
+                <span class="text-[10px] font-bold">分帳</span>
+            </div>
+        </button>
+        <button @click="activeTab = 'settings'" :class="activeTab === 'settings' ? 'text-yellow-500' : 'text-gray-300'">
+            <div class="flex flex-col items-center gap-1">
+                <i data-lucide="settings-2" :class="{'active-tab-icon': activeTab === 'settings'}"></i>
+                <span class="text-[10px] font-bold">設定</span>
+            </div>
+        </button>
+    </nav>
+
+    <div class="absolute -bottom-4 -left-10 w-40 h-20 bg-white opacity-40 rounded-full blur-xl pointer-events-none"></div>
+</div>
+
+<script>
+    const { createApp, ref, onMounted, updated } = Vue;
+
+    createApp({
+        setup() {
+            const activeTab = ref('itinerary');
+            
+            const settings = ref({
+                destination: '東京櫻花季',
+                flightOut: 'BR198 08:30',
+                flightBack: 'BR197 14:00',
+                dateStart: '2026-04-01',
+                days: 5
+            });
+
+            const itinerary = ref([
+                { time: '10:00', location: '東京車站' },
+                { time: '13:30', location: '千鳥之淵' },
+                { time: '18:00', location: '六本木之丘' }
+            ]);
+
+            const bill = ref({
+                amount: 0,
+                people: 2
+            });
+
+            const addActivity = () => {
+                itinerary.value.push({ time: '12:00', location: '' });
+                setTimeout(() => lucide.createIcons(), 0);
+            };
+
+            const removeActivity = (index) => {
+                itinerary.value.splice(index, 1);
+            };
+
+            const goMap = (loc) => {
+                if (!loc) alert('請先輸入地點名稱唷！');
+                else window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`, '_blank');
+            };
+
+            onMounted(() => {
+                lucide.createIcons();
+            });
+
+            return {
+                activeTab, settings, itinerary, bill,
+                addActivity, removeActivity, goMap
+            };
+        },
+        updated() {
+            lucide.createIcons();
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>

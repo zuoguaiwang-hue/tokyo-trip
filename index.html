@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kiki & Lala 夢幻飛行助手 v5</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Itim&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --lala-pink: #FFC8DD;
+            --kiki-blue: #BDE0FE;
+            --star-yellow: #FFF9C4;
+        }
+        body {
+            font-family: 'Quicksand', 'Itim', sans-serif;
+            background: linear-gradient(135deg, #fdf2f8 0%, #e0f2fe 100%);
+            overscroll-behavior: none;
+        }
+        .app-shell {
+            max-width: 450px;
+            height: 100vh;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(25px);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 24px;
+            border: 2px solid #ffffff;
+        }
+        
+        /* 機票捲軸區域 */
+        .ticket-slider {
+            height: 160px;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .ticket-slider::-webkit-scrollbar { display: none; }
+        
+        .ticket-item {
+            height: 150px;
+            scroll-snap-align: start;
+            margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+
+        /* 夢幻機票樣式 */
+        .boarding-pass {
+            height: 100%;
+            border-radius: 20px;
+            position: relative;
+            color: white;
+            display: flex;
+            box-shadow: 0 8px 15px rgba(255, 182, 193, 0.2);
+        }
+        .pass-out { background: linear-gradient(135deg, #FFC8DD 0%, #BDE0FE 100%); }
+        .pass-back { background: linear-gradient(135deg, #BDE0FE 0%, #A2D2FF 100%); }
+
+        /* 側邊孔洞效果 */
+        .boarding-pass::before, .boarding-pass::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #fcf4f8; 
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+        }
+        .boarding-pass::before { left: -8px; }
+        .boarding-pass::after { right: -8px; }
+        
+        .perforation {
+            border-left: 2px dashed rgba(255, 255, 255, 0.4);
+            height: 70%;
+            align-self: center;
+        }
+
+        .day-tab.active {
+            background: var(--lala-pink);
+            color: white;
+            box-shadow: 0 4px 10px rgba(255, 200, 221, 0.4);
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="flex justify-center items-center">
+
+<div id="app" class="app-shell w-full relative flex flex-col overflow-hidden shadow-2xl">
+    
+    <header class="pt-10 pb-2 px-8 flex justify-between items-end">
+        <div>
+            <p class="text-[10px] text-pink-400 font-bold tracking-widest mb-1">SWEET FLIGHT</p>
+            <h1 class="text-2xl font-bold text-gray-700">{{ settings.destination }}</h1>
+        </div>
+        <button @click="showSettings = true" class="w-10 h-10 rounded-full bg-white shadow-sm flex justify-center items-center text-pink-300">
+            <i data-lucide="ticket"></i>
+        </button>
+    </header>
+
+    <main class="flex-1 overflow-y-auto px-6 pb-28 pt-2">
+        
+        <div v-if="activeTab === 'itinerary'" class="space-y-4">
+            
+            <div class="ticket-slider">
+                <div class="ticket-item">
+                    <div class="boarding-pass pass-out p-5">
+                        <div class="flex-1 pr-4">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-[9px] font-bold opacity-80 uppercase">Outbound Flight</span>
+                                <span class="text-[10px] font-bold">{{ settings.flightOutNum }}</span>
+                            </div>
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="text-center">
+                                    <p class="text-2xl font-bold tracking-tighter">{{ settings.fromAirport }}</p>
+                                    <p class="text-[10px] opacity-90 font-bold">{{ settings.fromTime }}</p>
+                                </div>
+                                <div class="flex flex-col items-center opacity-50">
+                                    <i data-lucide="plane" class="w-3 h-3 rotate-90"></i>
+                                    <div class="w-12 h-[1px] bg-white my-1"></div>
+                                </div>
+                                <div class="text-center">
+                                    <p class="text-2xl font-bold tracking-tighter">{{ settings.toAirport }}</p>
+                                    <p class="text-[10px] opacity-90 font-bold">{{ settings.toTime }}</p>
+                                </div>
+                            </div>
+                            <div class="pt-2 border-t border-white/20 flex justify-between text-[9px] font-bold">
+                                <span>{{ settings.startDate }}</span>
+                                <span class="text-yellow-100">LALA AIRLINES</span>
+                            </div>
+                        </div>
+                        <div class="perforation"></div>
+                        <div class="pl-4 flex flex-col justify-center items-center min-w-[50px]">
+                            <p class="text-[8px] font-bold rotate-90 opacity-60">DEPARTURE</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ticket-item">
+                    <div class="boarding-pass pass-back p-5">
+                        <div class="flex-1 pr-4">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-[9px] font-bold opacity-80 uppercase">Return Flight</span>
+                                <span class="text-[10px] font-bold">{{ settings.flightBackNum }}</span>
+                            </div>
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="text-center">
+                                    <p class="text-2xl font-bold tracking-tighter">{{ settings.toAirport }}</p>
+                                    <p class="text-[10px] opacity-90 font-bold">{{ settings.backFromTime }}</p>
+                                </div>
+                                <div class="flex flex-col items-center opacity-50">
+                                    <i data-lucide="plane" class="w-3 h-3 -rotate-90"></i>
+                                    <div class="w-12 h-[1px] bg-white my-1"></div>
+                                </div>
+                                <div class="text-center">
+                                    <p class="text-2xl font-bold tracking-tighter">{{ settings.fromAirport }}</p>
+                                    <p class="text-[10px] opacity-90 font-bold">{{ settings.backToTime }}</p>
+                                </div>
+                            </div>
+                            <div class="pt-2 border-t border-white/20 flex justify-between text-[9px] font-bold">
+                                <span>{{ settings.endDate }}</span>
+                                <span class="text-blue-50">KIKI AIRLINES</span>
+                            </div>
+                        </div>
+                        <div class="perforation"></div>
+                        <div class="pl-4 flex flex-col justify-center items-center min-w-[50px]">
+                            <p class="text-[8px] font-bold rotate-90 opacity-60">RETURN</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center text-[8px] text-gray-300 font-bold tracking-widest animate-bounce">Scroll for more tickets ◡̈</div>
+            </div>
+
+            <div class="flex gap-2 overflow-x-auto no-scrollbar py-2">
+                <button v-for="day in totalDays" :key="day" @click="activeDay = day"
+                    :class="['day-tab px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap border-2 border-white', 
+                            activeDay === day ? 'active' : 'bg-white/60 text-gray-400']">
+                    Day {{ day }}
+                </button>
+            </div>
+
+            <div v-for="(act, index) in currentDayActivities" :key="index" class="glass-card p-4 space-y-3">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white px-2 py-1 rounded-lg border border-pink-50">
+                        <input type="time" v-model="act.time" class="text-xs font-bold text-pink-400 outline-none">
+                    </div>
+                    <input v-model="act.location" placeholder="要去哪裡呢？" class="flex-1 bg-transparent border-b border-pink-50 font-bold text-gray-700 outline-none">
+                </div>
+                <textarea v-model="act.note" placeholder="備註點什麼..." rows="1" class="w-full bg-pink-50/20 rounded-xl p-2 text-[11px] text-gray-400 outline-none"></textarea>
+                <div class="flex justify-between items-center pt-1">
+                    <button @click="goMap(act.location)" class="text-[10px] text-blue-400 font-bold">導航</button>
+                    <button @click="removeActivity(index)" class="text-gray-300"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+                </div>
+            </div>
+            <button @click="addActivity" class="w-full py-3 border-2 border-dashed border-pink-100 rounded-2xl text-pink-300 text-xs font-bold hover:bg-white/50 transition">+ 新增行程地點</button>
+        </div>
+
+        <div v-if="activeTab === 'shopping'" class="space-y-4 pt-2">
+            <div class="flex gap-2 mb-4">
+                <input v-model="newItemName" @keyup.enter="addShopItem" placeholder="想要買什麼？" class="flex-1 bg-white rounded-2xl px-4 py-3 text-sm outline-none">
+                <button @click="addShopItem" class="bg-blue-100 text-blue-500 px-4 rounded-2xl font-bold">＋</button>
+            </div>
+            <div v-for="(item, index) in shoppingList" :key="index" class="glass-card p-4 flex items-center gap-3">
+                <input type="checkbox" v-model="item.done" class="w-5 h-5 accent-pink-400">
+                <input v-model="item.text" :class="['flex-1 bg-transparent outline-none font-bold text-gray-600', item.done ? 'line-through text-gray-300' : '']">
+            </div>
+        </div>
+
+        <div v-if="activeTab === 'split'" class="pt-2">
+            <div class="glass-card p-8 text-center bg-white/90">
+                <input type="number" v-model.number="bill.amount" class="w-full text-5xl font-bold text-center text-pink-400 bg-transparent outline-none mb-8" placeholder="0">
+                <div class="bg-[#FFF9C4] rounded-[2rem] p-6 border-b-4 border-yellow-200">
+                    <p class="text-4xl font-bold text-yellow-600">${{ (bill.amount / bill.people).toFixed(0) }}</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <nav class="absolute bottom-0 w-full bg-white/80 backdrop-blur-md border-t border-pink-100 flex justify-around items-center py-5 pb-10">
+        <button @click="activeTab = 'itinerary'" :class="activeTab === 'itinerary' ? 'text-pink-400' : 'text-gray-300'">
+            <div class="flex flex-col items-center"><i data-lucide="map-pin"></i><span class="text-[10px] font-bold mt-1">行程</span></div>
+        </button>
+        <button @click="activeTab = 'shopping'" :class="activeTab === 'shopping' ? 'text-blue-400' : 'text-gray-300'">
+            <div class="flex flex-col items-center"><i data-lucide="shopping-bag"></i><span class="text-[10px] font-bold mt-1">清單</span></div>
+        </button>
+        <button @click="activeTab = 'split'" :class="activeTab === 'split' ? 'text-yellow-500' : 'text-gray-300'">
+            <div class="flex flex-col items-center"><i data-lucide="coins"></i><span class="text-[10px] font-bold mt-1">分帳</span></div>
+        </button>
+    </nav>
+
+    <transition name="pop">
+        <div v-if="showSettings" class="fixed inset-0 z-50 flex items-center justify-center p-6">
+            <div @click="showSettings = false" class="absolute inset-0 bg-black/5 backdrop-blur-sm"></div>
+            <div class="glass-card w-full max-w-sm p-8 relative shadow-2xl animate-in zoom-in">
+                <h3 class="font-bold text-gray-700 mb-6">航班資訊設定 ☁️</h3>
+                <div class="space-y-3 overflow-y-auto max-h-[60vh] px-1 no-scrollbar">
+                    <div class="bg-gray-50 p-3 rounded-2xl">
+                        <label class="text-[9px] font-bold text-gray-400 block mb-1">目的地</label>
+                        <input v-model="settings.destination" class="w-full bg-transparent font-bold outline-none text-gray-600">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-pink-50/50 p-2 rounded-xl">
+                            <label class="text-[9px] font-bold text-pink-400 block">出發機場</label>
+                            <input v-model="settings.fromAirport" class="w-full bg-transparent outline-none font-bold uppercase">
+                        </div>
+                        <div class="bg-pink-50/50 p-2 rounded-xl">
+                            <label class="text-[9px] font-bold text-pink-400 block">抵達機場</label>
+                            <input v-model="settings.toAirport" class="w-full bg-transparent outline-none font-bold uppercase">
+                        </div>
+                    </div>
+                    <p class="text-[10px] font-bold text-gray-400 mt-4 border-b pb-1">去程航班 (Outbound)</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input v-model="settings.flightOutNum" placeholder="航班編號" class="bg-white p-2 rounded-xl text-xs outline-none shadow-sm">
+                        <input type="time" v-model="settings.fromTime" class="bg-white p-2 rounded-xl text-xs outline-none shadow-sm">
+                    </div>
+                    <p class="text-[10px] font-bold text-gray-400 mt-4 border-b pb-1">回程航班 (Return)</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input v-model="settings.flightBackNum" placeholder="航班編號" class="bg-white p-2 rounded-xl text-xs outline-none shadow-sm">
+                        <input type="time" v-model="settings.backFromTime" class="bg-white p-2 rounded-xl text-xs outline-none shadow-sm">
+                    </div>
+                </div>
+                <button @click="showSettings = false" class="w-full mt-8 bg-gradient-to-r from-pink-300 to-blue-300 text-white font-bold py-4 rounded-3xl active:scale-95 transition">確認修改</button>
+            </div>
+        </div>
+    </transition>
+
+</div>
+
+<script>
+    const { createApp, ref, computed, watch, onMounted } = Vue;
+
+    createApp({
+        setup() {
+            const activeTab = ref('itinerary');
+            const activeDay = ref(1);
+            const showSettings = ref(false);
+            const newItemName = ref('');
+            
+            const settings = ref({
+                destination: '首爾',
+                fromAirport: 'TPE',
+                toAirport: 'ICN',
+                fromTime: '08:30',
+                toTime: '12:00',
+                flightOutNum: 'OZ712',
+                backFromTime: '18:50',
+                backToTime: '20:30',
+                flightBackNum: 'OZ711',
+                startDate: '2026-06-01',
+                endDate: '2026-06-05'
+            });
+
+            const itineraryData = ref({ 1: [], 2: [] });
+            const shoppingList = ref([{ text: '泡麵', done: false }]);
+            const bill = ref({ amount: 0, people: 2 });
+
+            const totalDays = computed(() => {
+                const start = new Date(settings.value.startDate);
+                const end = new Date(settings.value.endDate);
+                return Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
+            });
+
+            const currentDayActivities = computed(() => {
+                if (!itineraryData.value[activeDay.value]) itineraryData.value[activeDay.value] = [];
+                return itineraryData.value[activeDay.value];
+            });
+
+            const addActivity = () => {
+                currentDayActivities.value.push({ time: '12:00', location: '', note: '' });
+                refreshIcons();
+            };
+
+            const removeActivity = (index) => currentDayActivities.value.splice(index, 1);
+
+            const addShopItem = () => {
+                if (!newItemName.value) return;
+                shoppingList.value.push({ text: newItemName.value, done: false });
+                newItemName.value = '';
+                refreshIcons();
+            };
+
+            const goMap = (loc) => {
+                if (!loc) return alert('請輸入地點！');
+                window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`, '_blank');
+            };
+
+            const refreshIcons = () => setTimeout(() => lucide.createIcons(), 0);
+
+            onMounted(() => lucide.createIcons());
+            watch([activeTab, activeDay, showSettings], refreshIcons);
+
+            return {
+                activeTab, activeDay, showSettings, settings, newItemName,
+                totalDays, currentDayActivities, shoppingList, bill,
+                addActivity, removeActivity, addShopItem, goMap
+            };
+        }
+    }).mount('#app');
+</script>
+
+<style>
+.pop-enter-active, .pop-leave-active { transition: all 0.3s ease; }
+.pop-enter-from, .pop-leave-to { opacity: 0; transform: scale(0.9); }
+</style>
+
+</body>
+</html>

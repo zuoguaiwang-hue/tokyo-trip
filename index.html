@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiki & Lala 夢幻旅遊助手</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Itim&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        body {
+            font-family: 'Quicksand', 'Itim', sans-serif;
+            background-color: #fdf2f8; /* 淺粉底 */
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .star-bg {
+            background-image: radial-gradient(#fff 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 2px solid #fff;
+        }
+        .lala-pink { background-color: #FFD1DC; }
+        .kiki-blue { background-color: #B0E0E6; }
+        .star-yellow { background-color: #FFFACD; }
+        
+        /* 自定義滾動條 */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #FFD1DC; border-radius: 10px; }
+    </style>
+</head>
+<body class="star-bg min-h-screen flex justify-center items-start">
+
+    <div id="app" class="w-full max-w-md min-h-screen bg-white shadow-2xl relative overflow-hidden flex flex-col">
+        
+        <header class="p-6 text-center relative overflow-hidden">
+            <div class="absolute -top-10 -left-10 w-32 h-32 lala-pink rounded-full opacity-30"></div>
+            <div class="absolute -top-5 -right-5 w-24 h-24 kiki-blue rounded-full opacity-30"></div>
+            <h1 class="text-2xl font-bold text-gray-700 relative">
+                ✨ {{ settings.destination }} 之旅 ✨
+            </h1>
+            <p class="text-sm text-gray-500">{{ settings.startDate }} ~ {{ settings.endDate }}</p>
+        </header>
+
+        <main class="flex-1 overflow-y-auto px-5 pb-24">
+            
+            <div v-if="activeTab === 'itinerary'">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-gray-600">每日行程</h2>
+                    <button @click="addActivity" class="kiki-blue text-blue-700 px-4 py-1 rounded-full text-sm font-bold shadow-sm hover:shadow-md transition">
+                        + 新增活動
+                    </button>
+                </div>
+                
+                <div v-for="(item, index) in itinerary" :key="index" class="mb-4 relative">
+                    <div class="glass-card rounded-3xl p-4 shadow-sm border-l-8" :style="{ borderColor: index % 2 === 0 ? '#FFD1DC' : '#B0E0E6' }">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <input v-model="item.time" type="time" class="bg-transparent text-sm font-bold text-pink-400 focus:outline-none">
+                                <input v-model="item.location" placeholder="要去哪裡呢？" class="block w-full text-lg font-bold text-gray-700 bg-transparent focus:outline-none mt-1">
+                            </div>
+                            <button @click="removeActivity(index)" class="text-gray-300 hover:text-red-400">
+                                <i data-lucide="x-circle"></i>
+                            </button>
+                        </div>
+                        <div class="mt-3 flex gap-2">
+                            <button @click="openMap(item.location)" class="flex items-center gap-1 text-xs bg-white px-3 py-1 rounded-full border border-gray-100 text-gray-500">
+                                <i data-lucide="map-pin" class="w-3 h-3"></i> 導航
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="activeTab === 'split'">
+                <h2 class="text-lg font-bold text-gray-600 mb-4">分帳小幫手</h2>
+                <div class="glass-card rounded-3xl p-5 mb-6">
+                    <div class="mb-4">
+                        <label class="text-xs text-gray-400 font-bold uppercase ml-1">總支出金額</label>
+                        <input v-model.number="bill.total" type="number" class="w-full text-2xl font-bold p-2 bg-transparent border-b-2 border-pink-100 focus:border-pink-300 outline-none">
+                    </div>
+                    <div class="mb-4">
+                        <label class="text-xs text-gray-400 font-bold uppercase ml-1">分攤人數</label>
+                        <input v-model.number="bill.people" type="number" class="w-full text-2xl font-bold p-2 bg-transparent border-b-2 border-blue-100 focus:border-blue-300 outline-none">
+                    </div>
+                    <div class="star-yellow p-4 rounded-2xl text-center">
+                        <p class="text-sm text-yellow-700">每人應付</p>
+                        <p class="text-3xl font-bold text-yellow-600">${{ splitAmount }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="activeTab === 'settings'">
+                <h2 class="text-lg font-bold text-gray-600 mb-4">旅程設定</h2>
+                <div class="space-y-4">
+                    <div class="glass-card rounded-2xl p-4">
+                        <label class="text-xs font-bold text-pink-400">目的地</label>
+                        <input v-model="settings.destination" class="w-full bg-transparent font-bold p-1 outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="glass-card rounded-2xl p-4">
+                            <label class="text-xs font-bold text-blue-400">出發日期</label>
+                            <input v-model="settings.startDate" type="date" class="w-full bg-transparent text-sm outline-none">
+                        </div>
+                        <div class="glass-card rounded-2xl p-4">
+                            <label class="text-xs font-bold text-blue-400">回程日期</label>
+                            <input v-model="settings.endDate" type="date" class="w-full bg-transparent text-sm outline-none">
+                        </div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-4">
+                        <label class="text-xs font-bold text-pink-400">去程航班</label>
+                        <input v-model="settings.flightInfo" placeholder="例如：BR198 08:30" class="w-full bg-transparent font-bold p-1 outline-none">
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <nav class="absolute bottom-0 w-full h-20 bg-white border-t border-gray-100 flex justify-around items-center px-6 pb-2">
+            <button @click="activeTab = 'itinerary'" :class="activeTab === 'itinerary' ? 'text-pink-400' : 'text-gray-300'">
+                <i data-lucide="calendar"></i>
+                <span class="text-[10px] block font-bold">行程</span>
+            </button>
+            <button @click="activeTab = 'split'" :class="activeTab === 'split' ? 'text-blue-400' : 'text-gray-300'">
+                <i data-lucide="wallet"></i>
+                <span class="text-[10px] block font-bold">分帳</span>
+            </button>
+            <button @click="activeTab = 'settings'" :class="activeTab === 'settings' ? 'text-yellow-500' : 'text-gray-300'">
+                <i data-lucide="settings"></i>
+                <span class="text-[10px] block font-bold">設定</span>
+            </button>
+        </nav>
+
+        <div class="absolute top-20 right-5 animate-pulse text-yellow-300">★</div>
+        <div class="absolute bottom-32 left-8 animate-bounce text-pink-200">★</div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const activeTab = ref('itinerary');
+                
+                const settings = ref({
+                    destination: '東京',
+                    startDate: '2026-05-20',
+                    endDate: '2026-05-25',
+                    flightInfo: 'JL802 10:00'
+                });
+
+                const itinerary = ref([
+                    { time: '09:00', location: '成田機場' },
+                    { time: '13:00', location: '淺草雷門' },
+                    { time: '18:00', location: '晴空塔夜景' }
+                ]);
+
+                const bill = ref({
+                    total: 0,
+                    people: 1
+                });
+
+                const splitAmount = computed(() => {
+                    if (!bill.value.people || bill.value.people <= 0) return 0;
+                    return (bill.value.total / bill.value.people).toLocaleString();
+                });
+
+                const addActivity = () => {
+                    itinerary.value.push({ time: '12:00', location: '' });
+                };
+
+                const removeActivity = (index) => {
+                    itinerary.value.splice(index, 1);
+                };
+
+                const openMap = (loc) => {
+                    if (!loc) return;
+                    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`, '_blank');
+                };
+
+                onMounted(() => {
+                    lucide.createIcons();
+                });
+
+                return {
+                    activeTab, settings, itinerary, bill, splitAmount,
+                    addActivity, removeActivity, openMap
+                };
+            },
+            updated() {
+                lucide.createIcons();
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
